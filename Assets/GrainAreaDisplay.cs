@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -8,7 +9,21 @@ public class GrainAreaDisplay : MonoBehaviour
 {
     Vector3 worldSpaceMin, worldSpaceMax;
     float waveFormwidth;
-    public float grainWidth;
+    public float grainAreaWidth;
+    [SerializeField] uint _grainLengthInMilliseconds;
+    public uint GrainLengthInMilliseconds
+    { 
+        get { return _grainLengthInMilliseconds; }
+        set {
+            if (value < 0)
+                _grainLengthInMilliseconds = 0;
+            else if (value > GetComponentInParent<GrainDisplay>().length)
+                _grainLengthInMilliseconds = GetComponentInParent<GrainDisplay>().length;
+            else
+                _grainLengthInMilliseconds = value;
+        }        
+    } 
+
     [SerializeField] Transform wrapAroundArea;
     [SerializeField] Transform helper;
 
@@ -16,10 +31,13 @@ public class GrainAreaDisplay : MonoBehaviour
     RectTransform mainAreaRect;
     RectTransform helperRect;
 
+    Vector3 prevPosition;
+
     [Range(0f, 1f)] public float pos = 0.5f;
 
     private void Awake()
     {
+
         //Ecken des WaveFormFields erhalten
         Vector3[] corners = new Vector3[4];
         transform.parent.parent.gameObject.GetComponent<RectTransform>().GetWorldCorners(corners); //lu, lo, ro, ru
@@ -29,6 +47,8 @@ public class GrainAreaDisplay : MonoBehaviour
 
         //grainWidth = GetComponent<RectTransform>().rect.width;
         mainAreaRect = GetComponent<RectTransform>();
+        prevPosition = transform.position;
+
 
         wrapAroundArea.position = worldSpaceMin;
         wrapAroundAreaRect = wrapAroundArea.gameObject.GetComponent<RectTransform>();
@@ -38,12 +58,14 @@ public class GrainAreaDisplay : MonoBehaviour
         helperRect = helper.GetComponent<RectTransform>();
         helperRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, mainAreaRect.rect.height);
         helperRect.position = mainAreaRect.position;
+
+        UpdateGrainWidthToMatchGrainLength();
     }
 
 
     private void Update()
     {
-        transform.position = (worldSpaceMin + new Vector3((waveFormwidth+grainWidth) * pos, 0, 0)) - new Vector3(grainWidth, 0, 0);
+        transform.position = (worldSpaceMin + (Vector3.right *(waveFormwidth+grainAreaWidth) * pos)) - (Vector3.right * grainAreaWidth);
         UpdaeHelper();
 
         Vector3[] corners = GetCornersOfHelperRect();
@@ -55,8 +77,8 @@ public class GrainAreaDisplay : MonoBehaviour
 
     void UpdaeHelper()
     {
-        helper.position = (worldSpaceMin + new Vector3((waveFormwidth + grainWidth) * pos, 0, 0)) - new Vector3(grainWidth, 0, 0);
-        helperRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, grainWidth);
+        helper.position = (worldSpaceMin + (Vector3.right * (waveFormwidth + grainAreaWidth) * pos)) - (Vector3.right * grainAreaWidth);
+        helperRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, grainAreaWidth);
     }
 
     private Vector3[] GetCornersOfHelperRect()
@@ -95,26 +117,27 @@ public class GrainAreaDisplay : MonoBehaviour
         if (overlapAmountRight != 0)
         {
             mainAreaRect.pivot = new Vector2(0, 1);
-            mainAreaRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, grainWidth - overlapAmountRight);
+            mainAreaRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, grainAreaWidth - overlapAmountRight);
         }
 
 
         else if (overlapAmountLeft != 0)
         {
-            mainAreaRect.pivot = new Vector2(1, 1);
-            mainAreaRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, grainWidth - overlapAmountLeft);
+             mainAreaRect.pivot = new Vector2(1, 1);
+            mainAreaRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, grainAreaWidth - overlapAmountLeft);
             //Pivot-Verschiebung ausgleichen
-            transform.position += new Vector3(grainWidth, 0, 0);
+              transform.position += (Vector3.right * grainAreaWidth);
         }
 
         else
         {
-            mainAreaRect.pivot = new Vector2(0, 1);
-            mainAreaRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, grainWidth);
+             mainAreaRect.pivot = new Vector2(0, 1);
+          //  Vector3 tmp = prevPosition;
+           // prevPosition = transform.position;
+            mainAreaRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, grainAreaWidth);
+         //   transform.position = tmp;
         }
-
     }
-
 
     void UpdateWrapAroundArea(float overlapAmountLeft, float overlapAmountRight)
     {
@@ -154,4 +177,14 @@ public class GrainAreaDisplay : MonoBehaviour
 
     }
 
+    //Funktion nötig, da man keine Properties im Inspector haben kann
+    private void OnValidate()
+    {
+        UpdateGrainWidthToMatchGrainLength();
+    }
+
+    private void UpdateGrainWidthToMatchGrainLength()
+    {
+        grainAreaWidth = ((float) _grainLengthInMilliseconds / GetComponentInParent<GrainDisplay>().length) * waveFormwidth;
+    }
 }
